@@ -1,0 +1,9 @@
+project:
+  output-dir: _docs
+
+website:
+  title: "semantic-cleaning"
+  site-url: "https://yuval6957.github.io/semantic-cleaning"
+  description: "Tools for semantic cleaning of a test dataset"
+  repo-branch: main
+  repo-url: "https://github.com/yuval6957/semantic-cleaning"
