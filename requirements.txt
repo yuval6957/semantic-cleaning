@@ -1,0 +1,6 @@
+nbdev
+tqdm
+torch
+numpy
+transformers
+datasets
