@@ -45,20 +45,67 @@ command:
 to_delete = deduplicate_embeddings(embedded =embeddeing, epsilon=1e-2, batch_size=20000)
 ```
 
+You could also find duplication between two datasets or splits like
+this:
+
+``` python
+to_delete = deduplicate_embeddings(embedded =embeddeing, embedded2 =embeddeing2, epsilon=1e-2, batch_size=20000)
+```
+
 The full process could be run like this
 
 ``` python
-  deduplicated = deduplicate_dataset(
-      dataset = data['train'], 
-      model = model, 
-      tokenizer = tokenizer,
-      epsilon = 1e-2, 
-      model_batch_size = 64, 
-      deduplication_batch_size = 20000, 
-      num_workers = 16,
-      dataset_feature = '_merged'
-  )
-  print (f"cleaned:{(1-len(deduplicated)/len(data['train']))*100:.2f}:%")
+deduplicated = deduplicate_dataset(
+    dataset = data['train'], 
+    model = model, 
+    tokenizer = tokenizer,
+    epsilon = 1e-2, 
+    model_batch_size = 64, 
+    deduplication_batch_size = 20000, 
+    num_workers = 16,
+    dataset_feature = '_merged'
+)
+print (f"cleaned:{(1-len(deduplicated)/len(data['train']))*100:.2f}:%")
 ```
 
 And deduplicated can be pushed back to the hub or saved on local drive
+
+## Command-Line Interface
+
+The semantic cleaning module also includes a command-line interface that
+can be used to deduplicate datasets:
+
+``` bash
+python semantic-cleaning.py \
+  --model_path "sentence-transformers/all-mpnet-base-v2" \
+  --tokenizer_path "sentence-transformers/all-mpnet-base-v2" \
+  --dataset_path "0-hero/OIG-small-chip2" \
+  --output_path "./deduplicated_imdb"
+```
+
+The following arguments are available:
+
+- –dataset_path: Path to the dataset to be deduplicated.
+- –model_path: The model checkpoint for embeddings. Should be a path or
+  model id in HuggingFace model hub.
+- –tokenizer_path: The tokenizer to be used.
+- –epsilon: Threshold for cosine similarity to consider embeddings as
+  duplicates.
+- –model_batch_size: Batch size for the model.
+- –deduplication_batch_size: Batch size for the deduplication process.
+- –num_workers: Number of worker processes for data loading.
+- –dataset_feature: Feature in the dataset to be used for deduplication.
+- –output_path: Path to save the deduplicated dataset. Can be a local
+  path or a HuggingFace dataset repository.
+- –hub_repo: Repository on the Hugging Face hub to push the dataset.
+- –hub_token: HuggingFace Hub token to push the dataset to the Hub.
+  Required when hub_repo is provided.
+- –device: Device to use for computations (e.g., ‘cpu’, ‘cuda’,
+  ‘cuda:1’). If not provided, it will use CUDA if available, otherwise
+  CPU.
+
+You can use the –help flag to get a description of all options:
+
+``` bash
+python semantic-cleaning.py --help
+```

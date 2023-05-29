@@ -11,7 +11,7 @@ from tqdm.auto import tqdm
 from typing import List, Dict, Set, Union, Callable
 import torch
 from torch.utils.data import DataLoader
-from datasets import Dataset, load_dataset
+from datasets import Dataset, load_dataset, DatasetDict
 import numpy as np
 from transformers import AutoTokenizer, AutoModel, AutoModelForCausalLM
 import torch.nn.functional as F
@@ -122,47 +122,53 @@ def compute_embeddings(
 
 
 # %% ../nbs/00_core.ipynb 18
-def deduplicate_embeddings(embedded, epsilon=1e-2, batch_size=20000):
+def deduplicate_embeddings(embedded, embedded2=None, epsilon=1e-2, batch_size=20000):
     """
-    Perform deduplication on the provided embeddings.
+    Perform deduplication on the provided embeddings. If a second set of embeddings is provided,
+    return the indices of embeddings in the second set that are duplicates of embeddings in the first set.
 
     Args:
-        embedded: A numpy array or PyTorch tensor holding the embeddings.
+        embedded1: A numpy array or PyTorch tensor holding the embeddings of the first set.
+        embedded2: A numpy array or PyTorch tensor holding the embeddings of the second set (optional).
         epsilon: The maximum distance for two embeddings to be considered duplicates (using cosine similarity).
         batch_size: The size of the batches to process at a time.
 
     Note: The embeddings must be L2 normalized.
 
     Returns:
-        A tensor of indices that should be deleted due to duplication.
+        If a second set of embeddings is provided, a tensor of indices of the second set that are duplicates of the first set.
+        If a second set of embeddings is not provided, a tensor of indices that should be deleted due to duplication in the first set.
     """
-
+    embedded1 = embedded
     to_delete = torch.empty(0, dtype=int)
-    embedded_tensor = torch.tensor(embedded, dtype=torch.float16, device='cuda', requires_grad=False)
+    embedded_tensor1 = torch.tensor(embedded1, dtype=torch.float16, device='cuda', requires_grad=False)
 
-    for i in range(embedded.shape[0]//batch_size+1):
-        
-        # Calculate the cosine distance within the current batch
-        cosine_dist = 1 - torch.matmul(embedded_tensor[i*batch_size:(i+1)*batch_size],
-                                        torch.transpose(embedded_tensor[i*batch_size:(i+1)*batch_size], 0, 1))
-        
-        cosine_dist = cosine_dist + torch.eye(cosine_dist.shape[0],device='cuda')
-        
-        # Find duplicate indices within the batch
-        dup_indices = torch.where(cosine_dist < epsilon)
-        to_delete = torch.cat((to_delete, dup_indices[0][torch.where(dup_indices[0] > dup_indices[1])].to('cpu') + (i*batch_size)))
+    if embedded2 is None:
+        embedded2 = embedded1
+        embedded_tensor2 = embedded_tensor1
+    else:
+        embedded_tensor2 = torch.tensor(embedded2, dtype=torch.float16, device='cuda', requires_grad=False)
 
-        # Find duplicate indices across the current batch and remaining batches
-        for k in range(i+1, embedded.shape[0]//batch_size+1):
-            cosine_dist = 1 - torch.matmul(embedded_tensor[i*batch_size:(i+1)*batch_size],
-                                            torch.transpose(embedded_tensor[k*batch_size:(k+1)*batch_size], 0, 1))
+    for i in range(embedded1.shape[0]//batch_size+1):
+        start_j = 0 if embedded2 is not embedded1 else i
+        for j in range(start_j, embedded2.shape[0]//batch_size+1):
+            cosine_dist = 1 - torch.matmul(embedded_tensor1[i*batch_size:(i+1)*batch_size],
+                                            torch.transpose(embedded_tensor2[j*batch_size:(j+1)*batch_size], 0, 1))
+
+            if embedded2 is embedded1 and i == j:
+                cosine_dist = cosine_dist + torch.eye(cosine_dist.shape[0], device='cuda')
 
             dup_indices = torch.where(cosine_dist < epsilon)
-            to_delete = torch.cat((to_delete, dup_indices[1].to('cpu') + k*batch_size))
+
+            if embedded2 is embedded1 and i == j:
+                to_delete = torch.cat((to_delete, dup_indices[0][torch.where(dup_indices[0] > dup_indices[1])].to('cpu') + (i*batch_size)))
+            else:
+                to_delete = torch.cat((to_delete, dup_indices[1].to('cpu') + j*batch_size))
 
             torch.cuda.empty_cache()
 
     return to_delete
+
 
 # %% ../nbs/00_core.ipynb 20
 def deduplicate_dataset(
@@ -173,7 +179,7 @@ def deduplicate_dataset(
     model_batch_size: int = 64, 
     deduplication_batch_size: int =20000, 
     num_workers: int = 16,
-    dataset_feature: str = '_merged'
+    dataset_feature: str = ''
 ) -> Dataset:
     """
     Deduplicate data in a dataset based on the embeddings computed by a given model.
@@ -190,8 +196,12 @@ def deduplicate_dataset(
     Returns:
         Deduplicated dataset.
     """
+    
+    if not dataset_feature:
+        dataset=preprocess_data(dataset)
+        dataset_feature ='_merged'
     # Compute embeddings for the dataset
-    embeddings = compute_embeddings(dataset, 
+    embeddings = compute_embeddings(dataset if not isinstance(dataset,DatasetDict) else dataset[list(dataset.keys())[0]], 
                                     model, 
                                     tokenizer,
                                     batch_size=model_batch_size, 
@@ -199,7 +209,7 @@ def deduplicate_dataset(
                                     dataset_feature=dataset_feature)
     
     # Find duplicate indices in the embeddings
-    duplicate_indices = deduplicate_embeddings(embeddings, epsilon, deduplication_batch_size)
+    duplicate_indices = deduplicate_embeddings(embedded = embeddings, epsilon=epsilon, batch_size=deduplication_batch_size)
     
     # Filter out duplicate instances from the dataset
     deduplicated_dataset = dataset.filter(lambda example, idx: idx not in duplicate_indices, with_indices=True)

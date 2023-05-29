@@ -2,7 +2,7 @@ import torch
 import argparse
 from transformers import AutoModel, AutoTokenizer
 from datasets import load_dataset
-from semantic-cleaning import deduplicate_dataset
+from semantic_cleaning import deduplicate_dataset
 
 def parse_args():
     parser = argparse.ArgumentParser()
@@ -14,7 +14,7 @@ def parse_args():
     parser.add_argument("--model_batch_size", type=int, default=64, help="Batch size for the model.")
     parser.add_argument("--deduplication_batch_size", type=int, default=20000, help="Batch size for deduplication process.")
     parser.add_argument("--num_workers", type=int, default=16, help="Number of worker processes for data loading.")
-    parser.add_argument("--dataset_feature", type=str, default="_merged", help="Feature in the dataset to use for deduplication.")
+    parser.add_argument("--dataset_feature", type=str, default="", help="Feature in the dataset to use for deduplication.")
     parser.add_argument("--output_path", type=str, default="./deduplicated_dataset", help="Path where the deduplicated dataset will be saved.")
     parser.add_argument("--hub_repo", type=str, default=None, help="Repository on the Hugging Face hub to push the dataset.")
     parser.add_argument("--hub_token", type=str, default=None, help="Hugging Face hub token.")
