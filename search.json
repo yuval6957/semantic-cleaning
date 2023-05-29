@@ -1,0 +1,79 @@
+[
+  {
+    "objectID": "core.html",
+    "href": "core.html",
+    "title": "core",
+    "section": "",
+    "text": "If you want the check the code you’ll need your Huggingface tokens. You can do it using login or by loading the tokens from a file.\nMy tokens are in a jason file with is loadded to a Parameters class\n\n## This is for colab integration - uncomment the lines below\n# from google.colab import drive\n# drive.mount('/content/drive')\n\n\nfrom reinautils import Parameters\n\n\nif os.path.isfile('/content/drive/MyDrive/tokens.json'):\n  params=Parameters().from_json ('/content/drive/MyDrive/tokens.json')"
+  },
+  {
+    "objectID": "core.html#loading-parameters",
+    "href": "core.html#loading-parameters",
+    "title": "core",
+    "section": "",
+    "text": "If you want the check the code you’ll need your Huggingface tokens. You can do it using login or by loading the tokens from a file.\nMy tokens are in a jason file with is loadded to a Parameters class\n\n## This is for colab integration - uncomment the lines below\n# from google.colab import drive\n# drive.mount('/content/drive')\n\n\nfrom reinautils import Parameters\n\n\nif os.path.isfile('/content/drive/MyDrive/tokens.json'):\n  params=Parameters().from_json ('/content/drive/MyDrive/tokens.json')"
+  },
+  {
+    "objectID": "core.html#lets-do-some-imports",
+    "href": "core.html#lets-do-some-imports",
+    "title": "core",
+    "section": "Lets do some imports",
+    "text": "Lets do some imports\n\nos.environ[\"TOKENIZERS_PARALLELISM\"]=\"True\""
+  },
+  {
+    "objectID": "core.html#define-a-function-for-the-data-preprocessing",
+    "href": "core.html#define-a-function-for-the-data-preprocessing",
+    "title": "core",
+    "section": "Define a function for the data preprocessing",
+    "text": "Define a function for the data preprocessing\n\nsource\n\npreprocess_data\n\n preprocess_data (dataset:datasets.arrow_dataset.Dataset,\n                  splits:Union[str,List[str]]=None, schema:str='')\n\nPreprocesses the dataset by merging selected keys into a formatted string.\nArgs: dataset: A HuggingFace Dataset. splits: The specific splits of the dataset to preprocess. Defaults to all splits. schema: A string defining how to format the merged string. It should contain keys from the dataset encapsulated in {}. Example: “:{user} :{response}”, where ‘user’ and ‘response’ are keys in the dataset.\nReturns: The processed Dataset with an additional “_merged” field containing the formatted strings."
+  },
+  {
+    "objectID": "core.html#define-a-function-to-compute-the-embeddings",
+    "href": "core.html#define-a-function-to-compute-the-embeddings",
+    "title": "core",
+    "section": "Define a function to compute the embeddings",
+    "text": "Define a function to compute the embeddings\n\nsource\n\nmean_pooling\n\n mean_pooling (model_output, attention_mask)\n\nMean Pooling - Take attention mask into account for correct averaging\n\nsource\n\n\ncompute_embeddings\n\n compute_embeddings (data:datasets.arrow_dataset.Dataset,\n                     embedding_model:torch.nn.modules.module.Module,\n                     tokenizer, batch_size:int=8, num_workers:int=1,\n                     dataset_feature:str='_merged')\n\nCompute sentence embeddings using an embedding model.\nArgs: data: A list of dictionary containing tokenized text. embedding_model: A callable model that returns embeddings for input tokens. batch_size: The number of samples per batch. num_workers: The number of worker processes for data loading. dataset_feature : The name of the feature to tokenize in the dataset Returns: A numpy array of embeddings for the input data."
+  },
+  {
+    "objectID": "core.html#this-function-will-do-the-deduplication",
+    "href": "core.html#this-function-will-do-the-deduplication",
+    "title": "core",
+    "section": "This function will do the deduplication",
+    "text": "This function will do the deduplication\n\nsource\n\ndeduplicate_embeddings\n\n deduplicate_embeddings (embedded, embedded2=None, epsilon=0.01,\n                         batch_size=20000)\n\nPerform deduplication on the provided embeddings. If a second set of embeddings is provided, return the indices of embeddings in the second set that are duplicates of embeddings in the first set.\nArgs: embedded1: A numpy array or PyTorch tensor holding the embeddings of the first set. embedded2: A numpy array or PyTorch tensor holding the embeddings of the second set (optional). epsilon: The maximum distance for two embeddings to be considered duplicates (using cosine similarity). batch_size: The size of the batches to process at a time.\nNote: The embeddings must be L2 normalized.\nReturns: If a second set of embeddings is provided, a tensor of indices of the second set that are duplicates of the first set. If a second set of embeddings is not provided, a tensor of indices that should be deleted due to duplication in the first set."
+  },
+  {
+    "objectID": "core.html#and-in-this-function-we-will-combine-everythin",
+    "href": "core.html#and-in-this-function-we-will-combine-everythin",
+    "title": "core",
+    "section": "And in this function we will combine everythin",
+    "text": "And in this function we will combine everythin\n\nsource\n\ndeduplicate_dataset\n\n deduplicate_dataset (dataset:datasets.arrow_dataset.Dataset,\n                      model:torch.nn.modules.module.Module, tokenizer,\n                      epsilon:float=0.01, model_batch_size:int=64,\n                      deduplication_batch_size:int=20000,\n                      num_workers:int=16, dataset_feature:str='')\n\nDeduplicate data in a dataset based on the embeddings computed by a given model.\nArgs: dataset: Dataset to be deduplicated. model: Model to compute embeddings. epsilon: Threshold for cosine similarity to consider embeddings as duplicates. model_batch_size: Batch size for the model. deduplication_batch_size: Batch size for deduplication process. num_workers: Number of worker processes for data loading. dataset_feature: Feature in the dataset to use for deduplication.\nReturns: Deduplicated dataset."
+  },
+  {
+    "objectID": "core.html#now-lets-test-it-all-together",
+    "href": "core.html#now-lets-test-it-all-together",
+    "title": "core",
+    "section": "Now let’s test it all together",
+    "text": "Now let’s test it all together\n\ndata = load_dataset(\"0-hero/OIG-small-chip2\")\n\n\n\n\n\nLoad and preprocess the data\nWe will do the test using a dataset from Huggingface : 0-hero/OIG-small-chip2\n\ndata = load_dataset(\"0-hero/OIG-small-chip2\")\n_ = preprocess_data(data,schema = \"&lt;human&gt;:{user} &lt;bot&gt;:{chip2}\")\ndata['train']['_merged'][0]\n\n\n\n\n\n\n\n\"&lt;human&gt;:I've heard that it's a good idea to have a will. What is a will?\\n\\n &lt;bot&gt;:A will is a legal document that specifies how your property should be distributed after you die. It can also specify who should care for any children or other dependents you may have. It's important to make sure that your will is valid and up-to-date, since the laws governing wills vary from state to state.\"\n\n\n\n\nLoad the tokenizer and model\nAs a model for the semantic embedding we’ll use sentence-transformers/all-mpnet-base-v2\n\ntokenizer = AutoTokenizer.from_pretrained('sentence-transformers/all-mpnet-base-v2')\nmodel = AutoModel.from_pretrained('sentence-transformers/all-mpnet-base-v2').to('cuda' if torch.cuda.is_available() else 'cpu')\n\n/opt/conda/lib/python3.10/site-packages/scipy/__init__.py:146: UserWarning: A NumPy version &gt;=1.16.5 and &lt;1.23.0 is required for this version of SciPy (detected version 1.23.5\n  warnings.warn(f\"A NumPy version &gt;={np_minversion} and &lt;{np_maxversion}\"\n\n\n\n\nRun De-duplication\n\n# For testing we will skip this if we don't have a GPU\nif torch.cuda.is_available():\n  deduplicated = deduplicate_dataset(\n      dataset = load_dataset(\"0-hero/OIG-small-chip2\"), \n      model = model, \n      tokenizer = tokenizer,\n      epsilon = 1e-2, \n      model_batch_size = 64, \n      deduplication_batch_size = 20000, \n      num_workers = 16,\n      dataset_feature = ''\n  )\n  print (f\"cleaned:{(1-list(deduplicated.num_rows.values())[0]/list(data.num_rows.values())[0])*100:.2f}:%\")\nelse:\n  print (\"No cuda available. Skipped\")\n\n\n\n\n\n\n\n\n\n\n\n\n\ncleaned:100.00:%"
+  },
+  {
+    "objectID": "index.html#install",
+    "href": "index.html#install",
+    "title": "semantic-cleaning",
+    "section": "Install",
+    "text": "Install\npip install semantic-cleaning"
+  },
+  {
+    "objectID": "index.html#how-to-use",
+    "href": "index.html#how-to-use",
+    "title": "semantic-cleaning",
+    "section": "How to use",
+    "text": "How to use\n\nfrom datasets import load_dataset\nimport numpy as np\nfrom transformers import AutoTokenizer, AutoModel\nfrom semantic_cleaning import  preprocess_data,compute_embeddings, deduplicate_embeddings, deduplicate_dataset\n\nProcessing a dataset to get a sentence for QA or comment and response etc.\n\ndata = load_dataset(\"0-hero/OIG-small-chip2\")\n_ = preprocess_data(data,schema = \":{user} :{chip2}\")\ndata['train']['_merged'][0]\n\n2\n\n\nCompute the embadding fot the sentences\n\ntokenizer = AutoTokenizer.from_pretrained('sentence-transformers/all-mpnet-base-v2')\nmodel = AutoModel.from_pretrained('sentence-transformers/all-mpnet-base-v2').to('cuda')\nembedding = compute_embeddings(data = data, embedding_model = model, tokenizer = tokenizer, batch_size = 64, num_workers =16, dataset_feature  = '_merged'):\n\nWe can get the indicis of all the duplicated lines with the folowing command:\n\nto_delete = deduplicate_embeddings(embedded =embeddeing, epsilon=1e-2, batch_size=20000)\n\nYou could also find duplication between two datasets or splits like this:\nto_delete = deduplicate_embeddings(embedded =embeddeing, embedded2 =embeddeing2, epsilon=1e-2, batch_size=20000)\nThe full process could be run like this\n\ndeduplicated = deduplicate_dataset(\n    dataset = data['train'], \n    model = model, \n    tokenizer = tokenizer,\n    epsilon = 1e-2, \n    model_batch_size = 64, \n    deduplication_batch_size = 20000, \n    num_workers = 16,\n    dataset_feature = '_merged'\n)\nprint (f\"cleaned:{(1-len(deduplicated)/len(data['train']))*100:.2f}:%\")\n\nAnd deduplicated can be pushed back to the hub or saved on local drive"
+  },
+  {
+    "objectID": "index.html#command-line-interface",
+    "href": "index.html#command-line-interface",
+    "title": "semantic-cleaning",
+    "section": "Command-Line Interface",
+    "text": "Command-Line Interface\nThe semantic cleaning module also includes a command-line interface that can be used to deduplicate datasets:\npython semantic-cleaning.py \\\n  --model_path \"sentence-transformers/all-mpnet-base-v2\" \\\n  --tokenizer_path \"sentence-transformers/all-mpnet-base-v2\" \\\n  --dataset_path \"0-hero/OIG-small-chip2\" \\\n  --output_path \"./deduplicated_imdb\"\nThe following arguments are available:\n\n–dataset_path: Path to the dataset to be deduplicated.\n–model_path: The model checkpoint for embeddings. Should be a path or model id in HuggingFace model hub.\n–tokenizer_path: The tokenizer to be used.\n–epsilon: Threshold for cosine similarity to consider embeddings as duplicates.\n–model_batch_size: Batch size for the model.\n–deduplication_batch_size: Batch size for the deduplication process.\n–num_workers: Number of worker processes for data loading.\n–dataset_feature: Feature in the dataset to be used for deduplication.\n–output_path: Path to save the deduplicated dataset. Can be a local path or a HuggingFace dataset repository.\n–hub_repo: Repository on the Hugging Face hub to push the dataset.\n–hub_token: HuggingFace Hub token to push the dataset to the Hub. Required when hub_repo is provided.\n–device: Device to use for computations (e.g., ‘cpu’, ‘cuda’, ‘cuda:1’). If not provided, it will use CUDA if available, otherwise CPU.\n\nYou can use the –help flag to get a description of all options:\npython semantic-cleaning.py --help"
+  }
+]
