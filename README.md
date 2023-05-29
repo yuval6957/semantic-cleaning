@@ -4,28 +4,19 @@
 
 <a href="https://colab.research.google.com/github/yuval6957/semantic-cleaning/blob/main/nbs/index.ipynb" target="_parent"><img src="https://colab.research.google.com/assets/colab-badge.svg" alt="Open In Colab"/></a>
 
-This file will become your README and also the index of your
-documentation.
-
 ## Install
 
 ``` sh
-pip install semantic_cleaning
+pip install semantic-cleaning
 ```
 
 ## How to use
 
 ``` python
-import os
-from tqdm.auto import tqdm
-from typing import List, Dict, Set, Union, Callable
-import torch
-from torch.utils.data import DataLoader
-from datasets import Dataset, load_dataset
+from datasets import load_dataset
 import numpy as np
-from transformers import AutoTokenizer, AutoModel, AutoModelForCausalLM
-import torch.nn.functional as F
-import transformers
+from transformers import AutoTokenizer, AutoModel
+from semantic_cleaning import  preprocess_data,compute_embeddings, deduplicate_embeddings, deduplicate_dataset
 ```
 
 Processing a dataset to get a sentence for QA or comment and response
